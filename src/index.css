@@ -1,0 +1,5 @@
+/* 仮の最小スタイル。デザイントークンは Tailwind 導入時に置き換える */
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
