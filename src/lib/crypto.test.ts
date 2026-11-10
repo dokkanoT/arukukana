@@ -142,6 +142,14 @@ describe('書き換えられたら開けない', () => {
     await expect(openBody(tampered, child.uid, child.keyPair.privateKey)).rejects.toThrow()
   })
 
+  it('header と body の暗号文を入れ替えると開けない', async () => {
+    const { child, capsule } = await sealFromMotherToChild()
+    const swapped: SealedCapsule = { ...capsule, header: capsule.body, body: capsule.header }
+
+    await expect(openBody(swapped, child.uid, child.keyPair.privateKey)).rejects.toThrow()
+    await expect(openHeader(swapped, child.uid, child.keyPair.privateKey)).rejects.toThrow()
+  })
+
   it('暗号文を 1 バイト変えると開けない', async () => {
     const { child, capsule } = await sealFromMotherToChild()
     const bytes = fromBase64Url(capsule.body.ct)

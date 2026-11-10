@@ -152,9 +152,18 @@ export async function fingerprintWords(publicKey: string): Promise<string[]> {
 // 内部の部品
 // ---------------------------------------------------------------------------
 
-/** AAD：平文で保存するメタデータ。暗号文と結びつけ、書き換えられたら復号が失敗するようにする */
-function associatedData(capsuleId: string, to: string, from: string): Bytes {
-  return utf8(`${capsuleId}|${to}|${from}`)
+/**
+ * AAD：平文で保存するメタデータ。暗号文と結びつけ、書き換えられたら復号が失敗するようにする。
+ * 末尾に header / body の区別も入れる。両方を同じ鍵 K で暗号化しているので、
+ * これがないと、サーバー側で header と body の暗号文を入れ替えても復号が通ってしまう。
+ */
+function associatedData(
+  capsuleId: string,
+  to: string,
+  from: string,
+  part: 'header' | 'body',
+): Bytes {
+  return utf8(`${capsuleId}|${to}|${from}|${part}`)
 }
 
 /**
@@ -287,11 +296,18 @@ export async function sealCapsule(input: SealInput): Promise<SealedCapsule> {
   const contentKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, [
     'encrypt',
   ])
-  const aad = associatedData(capsuleId, to, from)
 
   // encryptJson が毎回ランダムな IV を作るので、header と body は別の IV になる
-  const header = await encryptJson(contentKey, aad, input.header)
-  const body = await encryptJson(contentKey, aad, input.body)
+  const header = await encryptJson(
+    contentKey,
+    associatedData(capsuleId, to, from, 'header'),
+    input.header,
+  )
+  const body = await encryptJson(
+    contentKey,
+    associatedData(capsuleId, to, from, 'body'),
+    input.body,
+  )
 
   const keys: Record<string, WrappedKey> = {}
   for (const uid of readers) {
@@ -310,7 +326,7 @@ export async function openHeader(
   privateKey: CryptoKey,
 ): Promise<CapsuleHeader> {
   const contentKey = await unwrapContentKey(capsule, uid, privateKey)
-  const aad = associatedData(capsule.id, capsule.to, capsule.from)
+  const aad = associatedData(capsule.id, capsule.to, capsule.from, 'header')
   return (await decryptJson(contentKey, aad, capsule.header)) as CapsuleHeader
 }
 
@@ -325,6 +341,6 @@ export async function openBody(
   privateKey: CryptoKey,
 ): Promise<CapsuleBody> {
   const contentKey = await unwrapContentKey(capsule, uid, privateKey)
-  const aad = associatedData(capsule.id, capsule.to, capsule.from)
+  const aad = associatedData(capsule.id, capsule.to, capsule.from, 'body')
   return (await decryptJson(contentKey, aad, capsule.body)) as CapsuleBody
 }
