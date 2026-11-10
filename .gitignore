@@ -1,0 +1,14 @@
+# エージェント向け指示書（ローカル専用）
+CLAUDE.md
+
+# 依存パッケージ・ビルド成果物
+node_modules/
+dist/
+
+# 環境変数（Firebase の設定値など）
+.env
+.env.*
+!.env.example
+
+# OS / エディタ
+.DS_Store
