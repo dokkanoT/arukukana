@@ -1,0 +1,48 @@
+@import 'tailwindcss';
+
+/*
+ * デザイントークン。
+ * @theme に書いた値は :root の CSS 変数（var(--color-ink) など）になり、
+ * 同時に Tailwind のクラス（bg-ink, text-muted, font-mincho など）としても使える。
+ */
+@theme {
+  /* 背景・面・罫線 */
+  --color-ink: #0f1118;
+  --color-surface: #161a24;
+  --color-line: #2c3242;
+
+  /* 地図 */
+  --color-map-road: #1b2030;
+  --color-map-block: #121520;
+
+  /* 文字 */
+  --color-text: #eee8dc;
+  --color-muted: #a7a193;
+
+  /* 主ボタン・カプセルの灯り（gold の上に載せる文字は gold-ink） */
+  --color-gold: #e9b44c;
+  --color-gold-ink: #1a1408;
+
+  /* 手紙の紙面 */
+  --color-paper: #f2ecdf;
+  --color-paper-text: #2a2620;
+
+  /* 封蝋 */
+  --color-wax: #a63f2b;
+
+  /* 書体：見出し・手紙は明朝、UI はゴシック */
+  --font-mincho: 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+  --font-gothic: 'Zen Kaku Gothic New', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-ink);
+    color: var(--color-text);
+    font-family: var(--font-gothic);
+  }
+}
