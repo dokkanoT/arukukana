@@ -10,7 +10,7 @@ function formatDate(time: number): string {
 }
 
 export function InboxPage() {
-  const { status, items } = useInbox()
+  const { status, items, openedIds } = useInbox()
   const { position } = useCurrentLocation()
   // 「いま」は画面を開いた時点で 1 回だけ読む（描画のたびに変わる値を、描画の中で直接読まないため）
   const [now] = useState(() => Date.now())
@@ -61,19 +61,28 @@ export function InboxPage() {
 
       <ul className="flex flex-col gap-3">
         {letters.map(({ id, header, remaining }) => (
-          <li key={id} className="rounded-xl border border-line bg-surface p-4">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="font-mincho text-lg">{header.senderName} より</p>
-              <p className="shrink-0 text-sm text-gold">
-                {remaining === 0 ? '着きました' : `あと ${formatDistance(remaining)}`}
-              </p>
-            </div>
-            {header.hint && <p className="mt-1 text-sm text-muted">{header.hint}</p>}
-            {header.openAfter !== undefined && header.openAfter > now && (
-              <p className="mt-2 text-xs text-muted">
-                {formatDate(header.openAfter)}から開けられます
-              </p>
-            )}
+          <li key={id}>
+            <Link
+              to={`/letter/${id}`}
+              className="block rounded-xl border border-line bg-surface p-4"
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="font-mincho text-lg">{header.senderName} より</p>
+                <p className="shrink-0 text-sm text-gold">
+                  {openedIds.has(id)
+                    ? '開封済み'
+                    : remaining === 0
+                      ? '着きました'
+                      : `あと ${formatDistance(remaining)}`}
+                </p>
+              </div>
+              {header.hint && <p className="mt-1 text-sm text-muted">{header.hint}</p>}
+              {header.openAfter !== undefined && header.openAfter > now && (
+                <p className="mt-2 text-xs text-muted">
+                  {formatDate(header.openAfter)}から開けられます
+                </p>
+              )}
+            </Link>
           </li>
         ))}
       </ul>

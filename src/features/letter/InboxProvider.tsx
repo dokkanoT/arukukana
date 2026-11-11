@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { listenInbox } from '../../lib/capsules.ts'
 import { openHeader } from '../../lib/crypto.ts'
+import { loadOpenedIds, saveOpenedIds } from '../../lib/opened.ts'
 import { useSession } from '../auth/sessionContext.ts'
 import { InboxContext } from './inboxContext.ts'
 import type { InboxItem, InboxValue } from './inboxContext.ts'
+
+type Letters = Pick<InboxValue, 'status' | 'items'>
 
 /**
  * 自分あての手紙を見張り、header だけ開けて配る。
@@ -12,7 +15,8 @@ import type { InboxItem, InboxValue } from './inboxContext.ts'
  */
 export function InboxProvider({ children }: { children: ReactNode }) {
   const { uid, privateKey } = useSession()
-  const [value, setValue] = useState<InboxValue>({ status: 'loading', items: [] })
+  const [letters, setLetters] = useState<Letters>({ status: 'loading', items: [] })
+  const [openedIds, setOpenedIds] = useState<ReadonlySet<string>>(new Set())
 
   useEffect(() => {
     let cancelled = false
@@ -41,11 +45,11 @@ export function InboxProvider({ children }: { children: ReactNode }) {
             return item
           }),
         )
-        if (!cancelled && turn === latest) setValue({ status: 'ready', items })
+        if (!cancelled && turn === latest) setLetters({ status: 'ready', items })
       },
       (error) => {
         console.error('手紙を読み込めませんでした', error)
-        if (!cancelled) setValue((prev) => ({ ...prev, status: 'error' }))
+        if (!cancelled) setLetters((prev) => ({ ...prev, status: 'error' }))
       },
     )
 
@@ -54,6 +58,39 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       stop()
     }
   }, [uid, privateKey])
+
+  // 開封済みの記録を、端末から読む
+  useEffect(() => {
+    let cancelled = false
+    loadOpenedIds().then(
+      (ids) => {
+        // 読み込みを待つあいだに封を切った手紙があれば、それも残す
+        if (!cancelled) setOpenedIds((prev) => new Set([...ids, ...prev]))
+      },
+      () => {
+        // 読めなくても困らない（もう一度、封を切るところから見せるだけ）
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const markOpened = useCallback((capsuleId: string) => {
+    setOpenedIds((prev) => {
+      if (prev.has(capsuleId)) return prev
+      const next = new Set(prev).add(capsuleId)
+      void saveOpenedIds(next).catch(() => {
+        // 保存できなくても、この画面を開いているあいだは開封済みとして扱える
+      })
+      return next
+    })
+  }, [])
+
+  const value = useMemo<InboxValue>(
+    () => ({ ...letters, openedIds, markOpened }),
+    [letters, openedIds, markOpened],
+  )
 
   return <InboxContext value={value}>{children}</InboxContext>
 }

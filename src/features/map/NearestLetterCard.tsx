@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import type { CapsuleHeader } from '../../lib/crypto.ts'
 import { formatDistance } from '../../lib/geo.ts'
 
@@ -5,6 +6,8 @@ import { formatDistance } from '../../lib/geo.ts'
 const PROGRESS_START_M = 500
 
 type Props = {
+  /** 手紙の ID */
+  id: string
   header: CapsuleHeader
   /** 円のふちまでの残り（メートル）。0 なら着いている */
   remaining: number
@@ -13,7 +16,7 @@ type Props = {
 }
 
 /** いちばん近い手紙のカード。差出人・ヒント・残りの距離・進捗バーを出す */
-export function NearestLetterCard({ header, remaining, onWalkThere }: Props) {
+export function NearestLetterCard({ id, header, remaining, onWalkThere }: Props) {
   const arrived = remaining === 0
   // 500m 手前で 0%、着いたら 100%
   const progress = Math.min(1, Math.max(0, 1 - remaining / PROGRESS_START_M))
@@ -39,7 +42,14 @@ export function NearestLetterCard({ header, remaining, onWalkThere }: Props) {
         <div className="h-full rounded-full bg-gold" style={{ width: `${progress * 100}%` }} />
       </div>
 
-      {!arrived && (
+      {arrived ? (
+        <Link
+          to={`/letter/${id}`}
+          className="mt-3 block w-full rounded-full bg-gold px-4 py-2 text-center text-sm font-bold text-gold-ink"
+        >
+          手紙を見る
+        </Link>
+      ) : (
         <button
           type="button"
           onClick={onWalkThere}

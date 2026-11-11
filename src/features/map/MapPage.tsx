@@ -98,6 +98,7 @@ export function MapPage() {
         // 下の余白は、地図の帰属表示（© OpenStreetMap など）に重ならないようにするため
         <div className="absolute inset-x-0 bottom-0 mx-auto max-w-md px-3 pb-9">
           <NearestLetterCard
+            id={nearest.id}
             header={nearest.header}
             remaining={nearest.remaining}
             onWalkThere={() => moveTo({ lat: nearest.header.lat, lng: nearest.header.lng })}

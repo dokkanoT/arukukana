@@ -12,6 +12,10 @@ export type InboxItem = {
 export type InboxValue = {
   status: 'loading' | 'ready' | 'error'
   items: InboxItem[]
+  /** この端末で封を切ったことのある手紙の ID */
+  openedIds: ReadonlySet<string>
+  /** 封を切ったことを、この端末に覚えておく */
+  markOpened: (capsuleId: string) => void
 }
 
 export const InboxContext = createContext<InboxValue | null>(null)
