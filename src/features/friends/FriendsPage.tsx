@@ -39,12 +39,9 @@ export function FriendsPage() {
     setShareNote('')
     try {
       if (navigator.share) {
-        // スマホでは、LINE やメールなどを選ぶ画面が出る
-        await navigator.share({
-          title: 'アルクカナ',
-          text: 'アルクカナで、わたしあての手紙を埋められます。',
-          url: shareUrl,
-        })
+        // スマホでは、LINE やメールなどを選ぶ画面が出る。
+        // 渡すのは URL だけ。説明文も渡すと、「コピー」を選んだときに URL と一緒に貼り付けられてしまう
+        await navigator.share({ url: shareUrl })
       } else {
         await navigator.clipboard.writeText(shareUrl)
         setShareNote('リンクをコピーしました。相手に送ってください。')
