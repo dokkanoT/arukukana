@@ -45,3 +45,28 @@ export function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)}m`
   return `${(meters / 1000).toFixed(1)}km`
 }
+
+/** 手紙の円のふちまで、あと何メートルか。円の中にいれば 0 */
+export function remainingMeters(distance: number, radius: number): number {
+  return Math.max(0, distance - radius)
+}
+
+/**
+ * 地図に円を描くための頂点（[経度, 緯度] の並び）を作る。
+ * 地図は「メートル単位の円」を直接は描けないので、多角形で近似する。最初と最後は同じ点で閉じる。
+ */
+export function circlePolygon(center: LatLng, radius: number, steps = 64): [number, number][] {
+  // 緯度 1 度は約 111.32km。経度 1 度は、緯度が高いほど短くなる（cos をかける）
+  const latDegrees = radius / 111_320
+  const lngDegrees = latDegrees / Math.cos(toRadians(center.lat))
+
+  const points: [number, number][] = []
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * 2 * Math.PI
+    points.push([
+      center.lng + lngDegrees * Math.cos(angle),
+      center.lat + latDegrees * Math.sin(angle),
+    ])
+  }
+  return points
+}

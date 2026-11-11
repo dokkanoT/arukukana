@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { distanceMeters, formatDistance, isWithinReach } from './geo.ts'
+import {
+  circlePolygon,
+  distanceMeters,
+  formatDistance,
+  isWithinReach,
+  remainingMeters,
+} from './geo.ts'
 
 const tokyoStation = { lat: 35.6812, lng: 139.7671 }
 
@@ -53,5 +59,31 @@ describe('formatDistance', () => {
   it('1km 以上はキロメートルで、小数 1 桁まで出す', () => {
     expect(formatDistance(1000)).toBe('1.0km')
     expect(formatDistance(1234)).toBe('1.2km')
+  })
+})
+
+describe('remainingMeters', () => {
+  it('円のふちまでの距離を返す', () => {
+    expect(remainingMeters(100, 30)).toBe(70)
+  })
+
+  it('円の中にいれば 0', () => {
+    expect(remainingMeters(10, 30)).toBe(0)
+  })
+})
+
+describe('circlePolygon', () => {
+  it('最初と最後が同じ点で、閉じた形になる', () => {
+    const points = circlePolygon(tokyoStation, 30, 16)
+
+    expect(points).toHaveLength(17)
+    expect(points[16][0]).toBeCloseTo(points[0][0], 9)
+    expect(points[16][1]).toBeCloseTo(points[0][1], 9)
+  })
+
+  it('どの頂点も、中心からほぼ半径ぶん離れている', () => {
+    for (const [lng, lat] of circlePolygon(tokyoStation, 30)) {
+      expect(distanceMeters(tokyoStation, { lat, lng })).toBeCloseTo(30, 0)
+    }
   })
 })
