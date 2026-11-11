@@ -4,6 +4,8 @@ import { Link, useParams } from 'react-router'
 import { openBody } from '../../lib/crypto.ts'
 import { checkOpenable, distanceMeters, formatDistance, remainingMeters } from '../../lib/geo.ts'
 import { useSession } from '../auth/sessionContext.ts'
+import type { BuryPreset } from '../bury/BuryPage.tsx'
+import { useFriends } from '../friends/friendsContext.ts'
 import { useCurrentLocation } from '../location/locationContext.ts'
 import { useInbox } from './inboxContext.ts'
 
@@ -34,6 +36,7 @@ export function LetterPage() {
   const { uid, privateKey } = useSession()
   const { position, accuracy } = useCurrentLocation()
   const { status, items, openedIds, markOpened } = useInbox()
+  const { friends } = useFriends()
 
   /** 封を切って取り出した文面。まだなら null。画面を離れたら消える（端末にも保存しない） */
   const [message, setMessage] = useState<string | null>(null)
@@ -73,6 +76,9 @@ export function LetterPage() {
         openAfter: header.openAfter,
         now,
       })
+
+  // 返事を書けるのは、差出人が自分か、友だちにいるとき
+  const canReply = capsule.from === uid || friends.some((friend) => friend.uid === capsule.from)
 
   async function breakSeal() {
     setOpening(true)
@@ -123,12 +129,24 @@ export function LetterPage() {
           <p className="font-mincho text-lg leading-loose whitespace-pre-wrap">{message}</p>
           <p className="mt-8 text-right font-mincho">{header.senderName} より</p>
         </article>
-        <Link
-          to="/bury"
-          className="rounded-full bg-gold px-6 py-3 text-center font-bold text-gold-ink"
-        >
-          ここに返事を埋める
-        </Link>
+        {canReply ? (
+          <Link
+            to="/bury"
+            // あて先と場所は URL に入れず、画面の移動と一緒に渡す
+            state={{ to: capsule.from, spot: { lat: header.lat, lng: header.lng } } satisfies BuryPreset}
+            className="rounded-full bg-gold px-6 py-3 text-center font-bold text-gold-ink"
+          >
+            ここに返事を埋める
+          </Link>
+        ) : (
+          // 返事を送るには、差出人の公開鍵が要る。まだ友だちにいなければ、追加の画面へ案内する
+          <Link
+            to={`/friends?add=${encodeURIComponent(capsule.from)}`}
+            className="rounded-full bg-gold px-6 py-3 text-center font-bold text-gold-ink"
+          >
+            差出人を友だちに追加して、返事を書く
+          </Link>
+        )}
         {/* ふだん使う人の導線には出さない、控えめなリンク */}
         <Link
           to={`/letter/${capsule.id}/server`}
