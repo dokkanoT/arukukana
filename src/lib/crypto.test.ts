@@ -182,6 +182,36 @@ describe('サーバーに置く形', () => {
     expect(fromBase64Url(capsule.body.iv)).toHaveLength(12)
   })
 
+  it('保存する値の長さが firestore.rules の数字と合っている', async () => {
+    // ここの数字を変えるときは firestore.rules も一緒に直すこと
+    const { mother, child, capsule } = await sealFromMotherToChild()
+
+    expect(mother.publicKey).toHaveLength(87) // 公開鍵 65 バイト
+    expect(capsule.header.iv).toHaveLength(16) // IV 12 バイト
+    expect(capsule.body.iv).toHaveLength(16)
+    for (const uid of [mother.uid, child.uid]) {
+      const key = capsule.keys[uid]
+      expect(key.epk).toHaveLength(87)
+      expect(key.salt).toHaveLength(22) // salt 16 バイト
+      expect(key.iv).toHaveLength(16)
+      expect(key.wrapped).toHaveLength(64) // 鍵 32 バイト + 認証タグ 16 バイト
+    }
+  })
+
+  it('300 字の手紙でも、暗号文の合計は 16KB に収まる', async () => {
+    const me = await createPerson('me')
+    const capsule = await sealCapsule({
+      capsuleId: 'capsule-long',
+      to: me.uid,
+      from: me.uid,
+      header: { ...header, hint: 'あ'.repeat(100), openAfter: Date.now() },
+      body: { message: 'あ'.repeat(300) },
+      publicKeys: { [me.uid]: me.publicKey },
+    })
+
+    expect(capsule.header.ct.length + capsule.body.ct.length).toBeLessThanOrEqual(16 * 1024)
+  })
+
   it('同じ手紙でも、封をするたびに違う暗号文になる', async () => {
     const me = await createPerson('me')
     const input = {
