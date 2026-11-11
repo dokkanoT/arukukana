@@ -39,3 +39,9 @@ export function isWithinReach(
   const allowance = Math.min(Math.max(accuracy, 0), MAX_ACCURACY_ALLOWANCE_M)
   return distance <= radius + allowance
 }
+
+/** 距離を画面用の文字にする（例：85m、1.2km） */
+export function formatDistance(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)}m`
+  return `${(meters / 1000).toFixed(1)}km`
+}

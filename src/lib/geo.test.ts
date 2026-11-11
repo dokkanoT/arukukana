@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { distanceMeters, isWithinReach } from './geo.ts'
+import { distanceMeters, formatDistance, isWithinReach } from './geo.ts'
 
 const tokyoStation = { lat: 35.6812, lng: 139.7671 }
 
@@ -41,5 +41,17 @@ describe('isWithinReach', () => {
   it('誤差として認めるのは 30m まで', () => {
     expect(isWithinReach(60, 30, 500)).toBe(true)
     expect(isWithinReach(61, 30, 500)).toBe(false)
+  })
+})
+
+describe('formatDistance', () => {
+  it('1km 未満はメートルで、四捨五入して出す', () => {
+    expect(formatDistance(84.6)).toBe('85m')
+    expect(formatDistance(0)).toBe('0m')
+  })
+
+  it('1km 以上はキロメートルで、小数 1 桁まで出す', () => {
+    expect(formatDistance(1000)).toBe('1.0km')
+    expect(formatDistance(1234)).toBe('1.2km')
   })
 })
