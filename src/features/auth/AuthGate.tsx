@@ -11,6 +11,18 @@ type State =
   | { status: 'ready'; session: Session }
   | { status: 'error'; error: unknown }
 
+let sessionPromise: Promise<Session> | undefined
+
+/**
+ * 起動時の準備を 1 回だけ走らせる。
+ * 開発中の React（StrictMode）は effect を 2 回動かすので、そのままだと公開鍵の登録が 2 回同時に走り、
+ * 2 回目が「createdAt の書き換え」とみなされてルールに弾かれる。
+ */
+function prepareSessionOnce(signIn: () => Promise<string>, force = false): Promise<Session> {
+  if (force || !sessionPromise) sessionPromise = prepareSession(signIn)
+  return sessionPromise
+}
+
 /** 起動時の準備：匿名サインイン → 端末の鍵を用意 → 公開鍵を登録 */
 async function prepareSession(signIn: () => Promise<string>): Promise<Session> {
   // サインインと鍵の用意は互いに関係しないので、同時に進める
@@ -28,11 +40,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    prepareSession(ensureSignedIn).then(
+    prepareSessionOnce(ensureSignedIn).then(
       (session) => {
         if (!cancelled) setState({ status: 'ready', session })
       },
       (error: unknown) => {
+        // 原因を調べられるように、エラーだけはコンソールに出す（手紙の中身や座標は含まれない）
+        console.error('起動時の準備に失敗しました', error)
         if (!cancelled) setState({ status: 'error', error })
       },
     )
@@ -43,7 +57,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   function retry() {
     setState({ status: 'loading' })
-    prepareSession(retrySignIn).then(
+    prepareSessionOnce(retrySignIn, true).then(
       (session) => setState({ status: 'ready', session }),
       (error: unknown) => setState({ status: 'error', error }),
     )
