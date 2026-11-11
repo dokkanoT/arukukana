@@ -74,7 +74,7 @@ export function WelcomeGate({ children }: { children: ReactNode }) {
     try {
       await buryCapsule({
         from: { uid: session.uid, publicKey: session.publicKey },
-        to: session.uid,
+        to: { uid: session.uid, publicKey: session.publicKey },
         header: {
           lat: spot.lat,
           lng: spot.lng,
