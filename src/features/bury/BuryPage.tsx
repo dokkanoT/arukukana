@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { buryCapsule } from '../../lib/capsules.ts'
 import type { LatLng } from '../../lib/geo.ts'
 import { useSession } from '../auth/sessionContext.ts'
+import { useFriends } from '../friends/friendsContext.ts'
 import { useCurrentLocation } from '../location/locationContext.ts'
 import { MapView } from '../map/MapView.tsx'
 
@@ -16,6 +17,17 @@ const RADIUS_M = 30
 const NAME_STORAGE_KEY = 'arukukana:sender-name'
 
 type Status = 'editing' | 'sealing' | 'done' | 'error'
+
+/**
+ * 「ここに返事を埋める」から来たときに、画面の移動と一緒に受け取る値。
+ * URL には入れない（場所が履歴に残らないようにするため）。
+ */
+export type BuryPreset = {
+  /** あて先にしておく相手の uid */
+  to: string
+  /** 埋める場所にしておく地点 */
+  spot: LatLng
+}
 
 /** <input type="date"> の値（例 2026-11-13）を、その日の 0 時（端末の時刻）の UNIX ミリ秒にする */
 function startOfDay(dateText: string): number {
@@ -42,28 +54,43 @@ function saveSenderName(name: string) {
 export function BuryPage() {
   const session = useSession()
   const { position } = useCurrentLocation()
+  const { friends } = useFriends()
+  const preset = useLocation().state as BuryPreset | null
 
   const [message, setMessage] = useState('')
   const [hint, setHint] = useState('')
   const [senderName, setSenderName] = useState(loadSenderName)
   const [openDate, setOpenDate] = useState('')
   /** 埋める場所。地図をタップするまでは、いまいる場所 */
-  const [pickedSpot, setPickedSpot] = useState<LatLng | null>(null)
+  const [pickedSpot, setPickedSpot] = useState<LatLng | null>(preset?.spot ?? null)
+  /** あて先の uid。はじめは自分 */
+  const [toUid, setToUid] = useState(preset?.to ?? session.uid)
   const [status, setStatus] = useState<Status>('editing')
 
   const spot = pickedSpot ?? position
+  // あて先の公開鍵。自分なら手元の鍵、友だちなら追加したときに合言葉で確かめた鍵
+  const friend = friends.find((candidate) => candidate.uid === toUid)
+  const recipient =
+    toUid === session.uid
+      ? { uid: session.uid, publicKey: session.publicKey }
+      : friend
+        ? { uid: friend.uid, publicKey: friend.publicKey }
+        : null
   const canSubmit =
-    message.trim() !== '' && senderName.trim() !== '' && status !== 'sealing'
+    message.trim() !== '' &&
+    senderName.trim() !== '' &&
+    recipient !== null &&
+    status !== 'sealing'
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!canSubmit) return
+    if (!canSubmit || recipient === null) return
 
     setStatus('sealing')
     try {
       await buryCapsule({
         from: { uid: session.uid, publicKey: session.publicKey },
-        to: session.uid, // いまは自分あてだけ。友だちは「友だち」画面を作ってから選べるようにする
+        to: recipient,
         header: {
           lat: spot.lat,
           lng: spot.lng,
@@ -96,12 +123,12 @@ export function BuryPage() {
       <section className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
         <h1 className="font-mincho text-3xl font-bold">埋めました</h1>
         <p className="text-muted">
-          封をした手紙を、その場所に埋めました。
+          {friend ? `${friend.name} あてに、封をした手紙を埋めました。` : '封をした手紙を、その場所に埋めました。'}
           <br />
-          着いたときにだけ、開けられます。
+          {friend ? '相手の地図に出て、着いたときにだけ開けられます。' : '着いたときにだけ、開けられます。'}
         </p>
         <Link to="/" className="rounded-full bg-gold px-6 py-3 font-bold text-gold-ink">
-          地図で見る
+          {friend ? '地図にもどる' : '地図で見る'}
         </Link>
         <button type="button" onClick={writeAnother} className="text-sm text-muted underline">
           もう 1 通書く
@@ -117,11 +144,30 @@ export function BuryPage() {
       <label className="flex flex-col gap-1.5">
         <span className="text-sm text-muted">あて先</span>
         <select
-          disabled
-          className="rounded-lg border border-line bg-surface px-3 py-2.5 disabled:opacity-100"
+          value={toUid}
+          onChange={(event) => setToUid(event.target.value)}
+          className="rounded-lg border border-line bg-surface px-3 py-2.5"
         >
-          <option>自分</option>
+          <option value={session.uid}>自分</option>
+          {friends.map((candidate) => (
+            <option key={candidate.uid} value={candidate.uid}>
+              {candidate.name}
+            </option>
+          ))}
         </select>
+        {friends.length === 0 && (
+          <span className="text-xs text-muted">
+            <Link to="/friends" className="underline">
+              友だち
+            </Link>
+            を追加すると、その人あてにも埋められます。
+          </span>
+        )}
+        {recipient === null && (
+          <span role="alert" className="text-xs text-wax">
+            このあて先の鍵がありません。あて先を選びなおしてください。
+          </span>
+        )}
       </label>
 
       <label className="flex flex-col gap-1.5">
