@@ -3,6 +3,7 @@ import { AppLayout } from './components/AppLayout.tsx'
 import { AuthGate } from './features/auth/AuthGate.tsx'
 import { BuryPage } from './features/bury/BuryPage.tsx'
 import { FriendsPage } from './features/friends/FriendsPage.tsx'
+import { FriendsProvider } from './features/friends/FriendsProvider.tsx'
 import { InboxPage } from './features/letter/InboxPage.tsx'
 import { InboxProvider } from './features/letter/InboxProvider.tsx'
 import { LetterPage } from './features/letter/LetterPage.tsx'
@@ -16,22 +17,24 @@ function App() {
     <AuthGate>
       <LocationProvider>
         <InboxProvider>
-          <WelcomeGate>
-            <BrowserRouter>
-              <Routes>
-                <Route element={<AppLayout />}>
-                  <Route index element={<MapPage />} />
-                  <Route path="bury" element={<BuryPage />} />
-                  <Route path="inbox" element={<InboxPage />} />
-                  <Route path="letter/:id" element={<LetterPage />} />
-                  <Route path="letter/:id/server" element={<ServerViewPage />} />
-                  <Route path="friends" element={<FriendsPage />} />
-                  {/* 知らないURLは地図に戻す */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Route>
-              </Routes>
-            </BrowserRouter>
-          </WelcomeGate>
+          <FriendsProvider>
+            <WelcomeGate>
+              <BrowserRouter>
+                <Routes>
+                  <Route element={<AppLayout />}>
+                    <Route index element={<MapPage />} />
+                    <Route path="bury" element={<BuryPage />} />
+                    <Route path="inbox" element={<InboxPage />} />
+                    <Route path="letter/:id" element={<LetterPage />} />
+                    <Route path="letter/:id/server" element={<ServerViewPage />} />
+                    <Route path="friends" element={<FriendsPage />} />
+                    {/* 知らないURLは地図に戻す */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Route>
+                </Routes>
+              </BrowserRouter>
+            </WelcomeGate>
+          </FriendsProvider>
         </InboxProvider>
       </LocationProvider>
     </AuthGate>
