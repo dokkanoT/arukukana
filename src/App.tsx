@@ -8,25 +8,28 @@ import { InboxProvider } from './features/letter/InboxProvider.tsx'
 import { LetterPage } from './features/letter/LetterPage.tsx'
 import { LocationProvider } from './features/location/LocationProvider.tsx'
 import { MapPage } from './features/map/MapPage.tsx'
+import { WelcomeGate } from './features/welcome/WelcomeGate.tsx'
 
 function App() {
   return (
     <AuthGate>
       <LocationProvider>
         <InboxProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route element={<AppLayout />}>
-                <Route index element={<MapPage />} />
-                <Route path="bury" element={<BuryPage />} />
-                <Route path="inbox" element={<InboxPage />} />
-                <Route path="letter/:id" element={<LetterPage />} />
-                <Route path="friends" element={<FriendsPage />} />
-                {/* 知らないURLは地図に戻す */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
+          <WelcomeGate>
+            <BrowserRouter>
+              <Routes>
+                <Route element={<AppLayout />}>
+                  <Route index element={<MapPage />} />
+                  <Route path="bury" element={<BuryPage />} />
+                  <Route path="inbox" element={<InboxPage />} />
+                  <Route path="letter/:id" element={<LetterPage />} />
+                  <Route path="friends" element={<FriendsPage />} />
+                  {/* 知らないURLは地図に戻す */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </WelcomeGate>
         </InboxProvider>
       </LocationProvider>
     </AuthGate>
