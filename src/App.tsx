@@ -8,6 +8,7 @@ import { InboxProvider } from './features/letter/InboxProvider.tsx'
 import { LetterPage } from './features/letter/LetterPage.tsx'
 import { LocationProvider } from './features/location/LocationProvider.tsx'
 import { MapPage } from './features/map/MapPage.tsx'
+import { ServerViewPage } from './features/server-view/ServerViewPage.tsx'
 import { WelcomeGate } from './features/welcome/WelcomeGate.tsx'
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
                   <Route path="bury" element={<BuryPage />} />
                   <Route path="inbox" element={<InboxPage />} />
                   <Route path="letter/:id" element={<LetterPage />} />
+                  <Route path="letter/:id/server" element={<ServerViewPage />} />
                   <Route path="friends" element={<FriendsPage />} />
                   {/* 知らないURLは地図に戻す */}
                   <Route path="*" element={<Navigate to="/" replace />} />

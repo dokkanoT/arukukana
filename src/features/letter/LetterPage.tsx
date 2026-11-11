@@ -129,6 +129,13 @@ export function LetterPage() {
         >
           ここに返事を埋める
         </Link>
+        {/* ふだん使う人の導線には出さない、控えめなリンク */}
+        <Link
+          to={`/letter/${capsule.id}/server`}
+          className="self-center text-sm text-muted underline"
+        >
+          しくみを見る
+        </Link>
       </section>
     )
   }
