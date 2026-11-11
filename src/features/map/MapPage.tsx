@@ -19,7 +19,7 @@ const gpsMessages = {
 
 export function MapPage() {
   const { source, position, gpsStatus, startGps, moveTo } = useCurrentLocation()
-  const { items } = useInbox()
+  const { items, openedIds } = useInbox()
   const isDemo = source === 'manual'
   const message = gpsMessages[gpsStatus]
 
@@ -44,7 +44,8 @@ export function MapPage() {
         .sort((a, b) => a.remaining - b.remaining),
     [items, position],
   )
-  const nearest = letters.at(0)
+  // カードに出すのは、まだ開けていない手紙のうち、いちばん近いもの。全部開けていれば、いちばん近い手紙
+  const nearest = letters.find((letter) => !openedIds.has(letter.id)) ?? letters.at(0)
 
   const circles = useMemo<MapCircle[]>(
     () =>

@@ -1,32 +1,122 @@
-import { useEffect, useState } from 'react'
-import { fingerprintWords } from '../../lib/crypto.ts'
+import { useState } from 'react'
+import { useSearchParams } from 'react-router'
+import type { Friend } from '../../lib/friends.ts'
 import { useSession } from '../auth/sessionContext.ts'
+import { AddFriendPanel } from './AddFriendPanel.tsx'
+import { useFriends } from './friendsContext.ts'
+import { QrCode } from './QrCode.tsx'
+import { useFingerprint } from './useFingerprint.ts'
 
-/** 仮の中身。いまは自分の鍵の合言葉だけを出す（QR・共有リンク・友だち一覧はこれから） */
+/** 共有リンクに入れる、相手の uid のパラメータ名（例：/friends?add=xxxx） */
+const ADD_PARAM = 'add'
+
+function FriendRow({ friend, onRemove }: { friend: Friend; onRemove: () => void }) {
+  const words = useFingerprint(friend.publicKey)
+  return (
+    <li className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface p-4">
+      <div className="min-w-0">
+        <p className="font-mincho text-lg">{friend.name}</p>
+        <p className="text-xs text-muted">{words}</p>
+      </div>
+      <button type="button" onClick={onRemove} className="shrink-0 text-sm text-muted underline">
+        消す
+      </button>
+    </li>
+  )
+}
+
 export function FriendsPage() {
-  const { publicKey } = useSession()
-  const [words, setWords] = useState<string[]>([])
+  const { uid, publicKey } = useSession()
+  const { friends, removeFriend } = useFriends()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [shareNote, setShareNote] = useState('')
+  const myWords = useFingerprint(publicKey)
 
-  useEffect(() => {
-    let cancelled = false
-    void fingerprintWords(publicKey).then((result) => {
-      if (!cancelled) setWords(result)
-    })
-    return () => {
-      cancelled = true
+  const addUid = searchParams.get(ADD_PARAM)
+  // リンクに入れるのは uid だけ。公開鍵は、開いた側がサーバーから読む
+  const shareUrl = `${window.location.origin}/friends?${ADD_PARAM}=${encodeURIComponent(uid)}`
+
+  async function share() {
+    setShareNote('')
+    try {
+      if (navigator.share) {
+        // スマホでは、LINE やメールなどを選ぶ画面が出る。
+        // 渡すのは URL だけ。説明文も渡すと、「コピー」を選んだときに URL と一緒に貼り付けられてしまう
+        await navigator.share({ url: shareUrl })
+      } else {
+        await navigator.clipboard.writeText(shareUrl)
+        setShareNote('リンクをコピーしました。相手に送ってください。')
+      }
+    } catch (error) {
+      // 共有の画面を閉じただけのときは、何も言わない
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      setShareNote('共有できませんでした。下のリンクをコピーして送ってください。')
     }
-  }, [publicKey])
+  }
 
   return (
-    <section className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
-      <h1 className="font-mincho text-3xl font-bold">友だち</h1>
-      <p className="text-muted">あなたの鍵の合言葉</p>
-      <p className="font-mincho text-2xl text-gold">{words.join('・')}</p>
-      <p className="text-sm text-muted">
-        相手の画面に出る合言葉と読み合わせると、
-        <br />
-        鍵の取り違えに気づけます。
-      </p>
+    <section className="mx-auto flex max-w-md flex-col gap-6 px-4 py-6">
+      <h1 className="font-mincho text-2xl font-bold">友だち</h1>
+
+      {addUid !== null &&
+        (addUid === uid ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">
+            <p className="text-muted">
+              これは、あなた自身のリンクです。手紙を送ってほしい相手に送ってください。
+            </p>
+            <button
+              type="button"
+              onClick={() => setSearchParams({})}
+              className="self-start text-sm underline"
+            >
+              閉じる
+            </button>
+          </div>
+        ) : (
+          // key を付けて、別の人のリンクを開いたら入力を作りなおす
+          <AddFriendPanel key={addUid} uid={addUid} onClose={() => setSearchParams({})} />
+        ))}
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">
+        <div>
+          <p className="text-sm text-muted">あなたの鍵の合言葉</p>
+          <p className="mt-1 font-mincho text-2xl text-gold">{myWords}</p>
+        </div>
+        <p className="text-sm text-muted">
+          QR を相手のカメラで読んでもらうか、リンクを送ると、相手があなたあてに手紙を埋められるようになります。相手の画面に出る合言葉がこれと同じなら、あなたの鍵です。
+        </p>
+        <div className="self-center">
+          <QrCode value={shareUrl} label="あなたの共有リンクの QR コード" />
+        </div>
+        <button
+          type="button"
+          onClick={() => void share()}
+          className="rounded-full bg-gold px-6 py-3 font-bold text-gold-ink"
+        >
+          リンクで送る
+        </button>
+        {shareNote && <p className="text-sm text-muted">{shareNote}</p>}
+        <p className="font-mono text-xs break-all text-muted">{shareUrl}</p>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <h2 className="font-mincho text-lg font-bold">手紙を送れる相手</h2>
+        {friends.length === 0 ? (
+          <p className="text-sm text-muted">
+            まだいません。相手からリンクを送ってもらって開くと、ここに追加できます。
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {friends.map((friend) => (
+              <FriendRow
+                key={friend.uid}
+                friend={friend}
+                onRemove={() => removeFriend(friend.uid)}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   )
 }
