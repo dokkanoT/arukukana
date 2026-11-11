@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { distanceMeters, formatDistance } from '../../lib/geo.ts'
+import { distanceMeters, formatDistance, remainingMeters } from '../../lib/geo.ts'
 import { useCurrentLocation } from '../location/locationContext.ts'
 import { useInbox } from './inboxContext.ts'
 
@@ -19,10 +19,17 @@ export function InboxPage() {
   const letters = items
     .flatMap((item) =>
       item.header
-        ? [{ id: item.capsule.id, header: item.header, distance: distanceMeters(position, item.header) }]
+        ? [
+            {
+              id: item.capsule.id,
+              header: item.header,
+              // 円のふちまでの残り。地図のカードと同じ数え方にそろえる
+              remaining: remainingMeters(distanceMeters(position, item.header), item.header.radius),
+            },
+          ]
         : [],
     )
-    .sort((a, b) => a.distance - b.distance)
+    .sort((a, b) => a.remaining - b.remaining)
   const unreadableCount = items.length - letters.length
 
   if (status === 'loading') {
@@ -53,11 +60,13 @@ export function InboxPage() {
       )}
 
       <ul className="flex flex-col gap-3">
-        {letters.map(({ id, header, distance }) => (
+        {letters.map(({ id, header, remaining }) => (
           <li key={id} className="rounded-xl border border-line bg-surface p-4">
             <div className="flex items-baseline justify-between gap-3">
               <p className="font-mincho text-lg">{header.senderName} より</p>
-              <p className="shrink-0 text-sm text-gold">あと {formatDistance(distance)}</p>
+              <p className="shrink-0 text-sm text-gold">
+                {remaining === 0 ? '着きました' : `あと ${formatDistance(remaining)}`}
+              </p>
             </div>
             {header.hint && <p className="mt-1 text-sm text-muted">{header.hint}</p>}
             {header.openAfter !== undefined && header.openAfter > now && (
