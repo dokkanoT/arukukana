@@ -4,6 +4,7 @@ import type { Friend } from '../../lib/friends.ts'
 import { useSession } from '../auth/sessionContext.ts'
 import { AddFriendPanel } from './AddFriendPanel.tsx'
 import { useFriends } from './friendsContext.ts'
+import { QrCode } from './QrCode.tsx'
 import { useFingerprint } from './useFingerprint.ts'
 
 /** 共有リンクに入れる、相手の uid のパラメータ名（例：/friends?add=xxxx） */
@@ -82,8 +83,11 @@ export function FriendsPage() {
           <p className="mt-1 font-mincho text-2xl text-gold">{myWords}</p>
         </div>
         <p className="text-sm text-muted">
-          下のリンクを送ると、相手があなたあてに手紙を埋められるようになります。相手の画面に出る合言葉がこれと同じなら、あなたの鍵です。
+          QR を相手のカメラで読んでもらうか、リンクを送ると、相手があなたあてに手紙を埋められるようになります。相手の画面に出る合言葉がこれと同じなら、あなたの鍵です。
         </p>
+        <div className="self-center">
+          <QrCode value={shareUrl} label="あなたの共有リンクの QR コード" />
+        </div>
         <button
           type="button"
           onClick={() => void share()}
