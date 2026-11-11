@@ -1,0 +1,94 @@
+rules_version = '2';
+
+// アルクカナのセキュリティルール。
+// ここに書いていない読み書きは、すべて拒否される。
+// 長さの数字は base64url にしたあとの文字数（src/lib/crypto.test.ts の「保存する値の長さ」で固定している）。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // フィールドが「ちょうどこの名前だけ」であること（余計なものも、足りないものも不可）
+    function hasExactly(data, fields) {
+      return data.keys().hasOnly(fields) && data.keys().hasAll(fields);
+    }
+
+    // 公開鍵：P-256 の raw 形式 65 バイト → 87 文字
+    function validPublicKey(value) {
+      return value is string && value.size() == 87;
+    }
+
+    // AES-GCM の暗号文：IV は 12 バイト → 16 文字
+    function validCiphertext(value) {
+      return value is map
+        && hasExactly(value, ['iv', 'ct'])
+        && value.iv is string && value.iv.size() == 16
+        && value.ct is string;
+    }
+
+    // 1 人ぶんの包んだ内容鍵：salt は 16 バイト → 22 文字、wrapped は 鍵 32 + 認証タグ 16 バイト → 64 文字
+    function validWrappedKey(value) {
+      return value is map
+        && hasExactly(value, ['epk', 'salt', 'iv', 'wrapped'])
+        && validPublicKey(value.epk)
+        && value.salt is string && value.salt.size() == 22
+        && value.iv is string && value.iv.size() == 16
+        && value.wrapped is string && value.wrapped.size() == 64;
+    }
+
+    // ---- users/{uid}：公開鍵の置き場 ----
+    match /users/{uid} {
+      // 手紙を送るには相手の公開鍵が要るので、サインイン済みならだれでも読める（公開鍵は見られてよい値）
+      allow read: if signedIn();
+
+      // 作れるのは本人だけ。フィールドは publicKey と createdAt だけ
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && hasExactly(request.resource.data, ['publicKey', 'createdAt'])
+        && validPublicKey(request.resource.data.publicKey)
+        && request.resource.data.createdAt == request.time;
+
+      // 鍵を作り直したときのために、本人は publicKey を差し替えられる。createdAt は変えられない
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && hasExactly(request.resource.data, ['publicKey', 'createdAt'])
+        && validPublicKey(request.resource.data.publicKey)
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if false;
+    }
+
+    // ---- capsules/{capsuleId}：封をした手紙 ----
+    match /capsules/{capsuleId} {
+      // 読めるのは、あて先と差出人だけ
+      allow read: if signedIn()
+        && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+
+      // 作れるのは、自分を差出人にした手紙だけ。形が決まったとおりであること
+      allow create: if signedIn()
+        && request.resource.data.from == request.auth.uid
+        && hasExactly(request.resource.data, ['to', 'from', 'createdAt', 'header', 'body', 'keys'])
+        && request.resource.data.to is string
+        // あて先が実在する（公開鍵を登録している）こと
+        && exists(/databases/$(database)/documents/users/$(request.resource.data.to))
+        && request.resource.data.createdAt == request.time
+        && validCiphertext(request.resource.data.header)
+        && validCiphertext(request.resource.data.body)
+        // 暗号文は合計 16KB まで（大きなデータの置き場にされないように）
+        && request.resource.data.header.ct.size() + request.resource.data.body.ct.size() <= 16 * 1024
+        // 包んだ鍵は、あて先と差出人のぶんだけ（自分あてなら 1 人ぶん）
+        && request.resource.data.keys is map
+        && hasExactly(request.resource.data.keys, [request.resource.data.to, request.resource.data.from])
+        && validWrappedKey(request.resource.data.keys[request.resource.data.to])
+        && validWrappedKey(request.resource.data.keys[request.resource.data.from]);
+
+      // 一度埋めた手紙は書き換えられない
+      allow update: if false;
+
+      // 消せるのは差出人だけ
+      allow delete: if signedIn() && resource.data.from == request.auth.uid;
+    }
+  }
+}

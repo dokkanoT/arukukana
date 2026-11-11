@@ -1,6 +1,9 @@
 import { initializeApp } from 'firebase/app'
+import type { FirebaseApp } from 'firebase/app'
 import { getAuth, signInAnonymously } from 'firebase/auth'
 import type { Auth } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
+import type { Firestore } from 'firebase/firestore'
 
 /** 設定値が入っていないときのエラー。画面側で案内を出し分けるために専用の型にしている */
 export class FirebaseConfigError extends Error {
@@ -10,11 +13,11 @@ export class FirebaseConfigError extends Error {
   }
 }
 
-let auth: Auth | undefined
+let app: FirebaseApp | undefined
 
-/** Firebase を初期化して Auth を返す。2 回目以降は同じものを返す */
-function getFirebaseAuth(): Auth {
-  if (auth) return auth
+/** Firebase を初期化する。2 回目以降は同じものを返す */
+function getFirebaseApp(): FirebaseApp {
+  if (app) return app
 
   const env = {
     VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -27,14 +30,22 @@ function getFirebaseAuth(): Auth {
     .map(([name]) => name)
   if (missing.length > 0) throw new FirebaseConfigError(missing)
 
-  const app = initializeApp({
+  app = initializeApp({
     apiKey: env.VITE_FIREBASE_API_KEY,
     authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
     projectId: env.VITE_FIREBASE_PROJECT_ID,
     appId: env.VITE_FIREBASE_APP_ID,
   })
-  auth = getAuth(app)
-  return auth
+  return app
+}
+
+function getFirebaseAuth(): Auth {
+  return getAuth(getFirebaseApp())
+}
+
+/** Firestore。置くのは暗号文と公開鍵だけ */
+export function getDb(): Firestore {
+  return getFirestore(getFirebaseApp())
 }
 
 async function signIn(): Promise<string> {

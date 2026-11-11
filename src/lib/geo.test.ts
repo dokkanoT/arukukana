@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { distanceMeters, isWithinReach } from './geo.ts'
+import {
+  checkOpenable,
+  circlePolygon,
+  distanceMeters,
+  formatDistance,
+  isWithinReach,
+  remainingMeters,
+} from './geo.ts'
 
 const tokyoStation = { lat: 35.6812, lng: 139.7671 }
 
@@ -41,5 +48,67 @@ describe('isWithinReach', () => {
   it('誤差として認めるのは 30m まで', () => {
     expect(isWithinReach(60, 30, 500)).toBe(true)
     expect(isWithinReach(61, 30, 500)).toBe(false)
+  })
+})
+
+describe('formatDistance', () => {
+  it('1km 未満はメートルで、四捨五入して出す', () => {
+    expect(formatDistance(84.6)).toBe('85m')
+    expect(formatDistance(0)).toBe('0m')
+  })
+
+  it('1km 以上はキロメートルで、小数 1 桁まで出す', () => {
+    expect(formatDistance(1000)).toBe('1.0km')
+    expect(formatDistance(1234)).toBe('1.2km')
+  })
+})
+
+describe('remainingMeters', () => {
+  it('円のふちまでの距離を返す', () => {
+    expect(remainingMeters(100, 30)).toBe(70)
+  })
+
+  it('円の中にいれば 0', () => {
+    expect(remainingMeters(10, 30)).toBe(0)
+  })
+})
+
+describe('circlePolygon', () => {
+  it('最初と最後が同じ点で、閉じた形になる', () => {
+    const points = circlePolygon(tokyoStation, 30, 16)
+
+    expect(points).toHaveLength(17)
+    expect(points[16][0]).toBeCloseTo(points[0][0], 9)
+    expect(points[16][1]).toBeCloseTo(points[0][1], 9)
+  })
+
+  it('どの頂点も、中心からほぼ半径ぶん離れている', () => {
+    for (const [lng, lat] of circlePolygon(tokyoStation, 30)) {
+      expect(distanceMeters(tokyoStation, { lat, lng })).toBeCloseTo(30, 0)
+    }
+  })
+})
+
+describe('checkOpenable', () => {
+  const arrived = { distance: 10, radius: 30, accuracy: 0, now: 1_000 }
+
+  it('着いていて、開けられる日の指定がなければ開けられる', () => {
+    expect(checkOpenable(arrived)).toBe('ok')
+  })
+
+  it('着いていなければ開けられない', () => {
+    expect(checkOpenable({ ...arrived, distance: 100 })).toBe('too-far')
+  })
+
+  it('開けられる日より前は開けられない', () => {
+    expect(checkOpenable({ ...arrived, openAfter: 2_000 })).toBe('too-early')
+  })
+
+  it('開けられる日時ちょうどから開けられる', () => {
+    expect(checkOpenable({ ...arrived, openAfter: 1_000 })).toBe('ok')
+  })
+
+  it('遠くて日も早いときは、まず遠いことを伝える', () => {
+    expect(checkOpenable({ ...arrived, distance: 100, openAfter: 2_000 })).toBe('too-far')
   })
 })
