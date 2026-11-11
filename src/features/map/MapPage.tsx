@@ -1,4 +1,5 @@
 import { useCurrentLocation } from '../location/locationContext.ts'
+import { MapView } from './MapView.tsx'
 
 const gpsMessages = {
   idle: '',
@@ -8,41 +9,46 @@ const gpsMessages = {
   unavailable: '現在地がわかりませんでした。デモモードで試せます。',
 }
 
-/** 仮の中身。いまは現在地の取得元と座標だけを出す（地図はこれから） */
 export function MapPage() {
-  const { source, position, accuracy, gpsStatus, startGps, moveTo } = useCurrentLocation()
+  const { source, position, gpsStatus, startGps, moveTo } = useCurrentLocation()
+  const isDemo = source === 'manual'
+  const message = gpsMessages[gpsStatus]
 
   return (
-    <section className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
-      <h1 className="font-mincho text-3xl font-bold">地図</h1>
+    <section className="relative h-full">
+      {/* デモモードのときだけ、タップした場所を現在地にする */}
+      <MapView position={position} onTap={isDemo ? moveTo : undefined} />
 
-      <p className="rounded-full border border-line bg-surface px-4 py-1 text-sm">
-        {source === 'gps' ? '現在地を使っています' : 'デモ：好きな場所に移動できます'}
-      </p>
+      {/* 地図の上に重ねる操作。pointer-events-none で、何もないところのタップは地図に通す */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-3">
+        {isDemo ? (
+          <p className="rounded-full border border-gold/60 bg-surface/90 px-4 py-1.5 text-sm text-gold">
+            デモ：タップした場所に移動
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => moveTo(position)}
+            className="pointer-events-auto rounded-full border border-line bg-surface/90 px-4 py-1.5 text-sm text-muted"
+          >
+            デモ：タップした場所に移動（切り替える）
+          </button>
+        )}
+        {message && (
+          <p className="rounded-lg bg-surface/90 px-3 py-1.5 text-center text-xs text-muted">
+            {message}
+          </p>
+        )}
+      </div>
 
-      <p className="text-muted">
-        {position.lat.toFixed(5)}, {position.lng.toFixed(5)}
-        {source === 'gps' && `（誤差 約${Math.round(accuracy)}m）`}
-      </p>
-
-      {gpsMessages[gpsStatus] && <p className="text-sm text-muted">{gpsMessages[gpsStatus]}</p>}
-
-      {source === 'manual' ? (
+      {isDemo && (
         <button
           type="button"
           onClick={startGps}
           disabled={gpsStatus === 'requesting'}
-          className="rounded-full bg-gold px-6 py-3 font-bold text-gold-ink disabled:opacity-60"
+          className="absolute bottom-10 right-3 rounded-full bg-gold px-4 py-2 text-sm font-bold text-gold-ink shadow-lg disabled:opacity-60"
         >
           現在地を使う
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => moveTo(position)}
-          className="rounded-full border border-line px-6 py-3"
-        >
-          デモモードにする
         </button>
       )}
     </section>
