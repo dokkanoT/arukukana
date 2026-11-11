@@ -70,3 +70,24 @@ export function circlePolygon(center: LatLng, radius: number, steps = 64): [numb
   }
   return points
 }
+
+/** 封を切れるかどうか。切れないときは理由を返す */
+export type OpenCheck = 'ok' | 'too-far' | 'too-early'
+
+/**
+ * 手紙の封を切ってよいかを確かめる。
+ * 条件：その場所に着いていて、開けられる日（あれば）を過ぎていること。
+ * これは端末側の判定で、暗号そのものが場所や日時に結びついているわけではない。
+ */
+export function checkOpenable(input: {
+  distance: number
+  radius: number
+  accuracy: number
+  /** 開けられる日時（UNIX ミリ秒）。無ければいつでもよい */
+  openAfter?: number
+  now: number
+}): OpenCheck {
+  if (!isWithinReach(input.distance, input.radius, input.accuracy)) return 'too-far'
+  if (input.openAfter !== undefined && input.now < input.openAfter) return 'too-early'
+  return 'ok'
+}

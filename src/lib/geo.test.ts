@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  checkOpenable,
   circlePolygon,
   distanceMeters,
   formatDistance,
@@ -85,5 +86,29 @@ describe('circlePolygon', () => {
     for (const [lng, lat] of circlePolygon(tokyoStation, 30)) {
       expect(distanceMeters(tokyoStation, { lat, lng })).toBeCloseTo(30, 0)
     }
+  })
+})
+
+describe('checkOpenable', () => {
+  const arrived = { distance: 10, radius: 30, accuracy: 0, now: 1_000 }
+
+  it('着いていて、開けられる日の指定がなければ開けられる', () => {
+    expect(checkOpenable(arrived)).toBe('ok')
+  })
+
+  it('着いていなければ開けられない', () => {
+    expect(checkOpenable({ ...arrived, distance: 100 })).toBe('too-far')
+  })
+
+  it('開けられる日より前は開けられない', () => {
+    expect(checkOpenable({ ...arrived, openAfter: 2_000 })).toBe('too-early')
+  })
+
+  it('開けられる日時ちょうどから開けられる', () => {
+    expect(checkOpenable({ ...arrived, openAfter: 1_000 })).toBe('ok')
+  })
+
+  it('遠くて日も早いときは、まず遠いことを伝える', () => {
+    expect(checkOpenable({ ...arrived, distance: 100, openAfter: 2_000 })).toBe('too-far')
   })
 })
