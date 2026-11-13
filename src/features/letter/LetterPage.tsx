@@ -1,3 +1,4 @@
+import { motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
@@ -7,6 +8,7 @@ import { useSession } from '../auth/sessionContext.ts'
 import type { BuryPreset } from '../bury/BuryPage.tsx'
 import { useFriends } from '../friends/friendsContext.ts'
 import { useCurrentLocation } from '../location/locationContext.ts'
+import { Envelope } from './Envelope.tsx'
 import { useInbox } from './inboxContext.ts'
 
 /** 「11月13日」のような日付にする */
@@ -29,7 +31,7 @@ function Notice({ title, children }: { title: string; children: ReactNode }) {
 
 /**
  * 手紙 1 通の画面。
- * まだ着いていない → 案内 ／ 着いた → 封筒と「封を切る」 ／ 封を切った → 紙面
+ * まだ着いていない → 案内 ／ 着いた → 封筒と「封を切る」 ／ 封を切った → 封蝋が割れる → 紙面
  */
 export function LetterPage() {
   const { id } = useParams()
@@ -41,6 +43,9 @@ export function LetterPage() {
   /** 封を切って取り出した文面。まだなら null。画面を離れたら消える（端末にも保存しない） */
   const [message, setMessage] = useState<string | null>(null)
   const [opening, setOpening] = useState(false)
+  /** 封蝋が割れる演出が終わったか。終わってから紙面を出す */
+  const [revealed, setRevealed] = useState(false)
+  const reduceMotion = useReducedMotion()
   const [failed, setFailed] = useState(false)
   // 「いま」は画面を開いた時点で 1 回だけ読む
   const [now] = useState(() => Date.now())
@@ -121,10 +126,15 @@ export function LetterPage() {
     )
   }
 
-  // 封を切ったあと：紙面
-  if (message !== null) {
+  // 封を切ったあと：紙面。封蝋が割れおわってから、下からふわっと出す
+  if (message !== null && revealed) {
     return (
-      <section className="mx-auto flex max-w-md flex-col gap-5 px-4 py-6">
+      <motion.section
+        className="mx-auto flex max-w-md flex-col gap-5 px-4 py-6"
+        initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
         <article className="rounded-lg bg-paper px-6 py-8 text-paper-text shadow-lg">
           <p className="font-mincho text-lg leading-loose whitespace-pre-wrap">{message}</p>
           <p className="mt-8 text-right font-mincho">{header.senderName} より</p>
@@ -154,7 +164,7 @@ export function LetterPage() {
         >
           しくみを見る
         </Link>
-      </section>
+      </motion.section>
     )
   }
 
@@ -163,13 +173,12 @@ export function LetterPage() {
     <section className="flex h-full flex-col items-center justify-center gap-6 px-6 text-center">
       <p className="text-muted">{alreadyOpened ? '前に開けた手紙です' : '着きました'}</p>
 
-      <div className="relative flex h-44 w-72 items-center justify-center rounded-lg bg-paper shadow-lg">
-        <p className="absolute left-5 top-4 font-mincho text-paper-text">{header.senderName} より</p>
-        {/* 封蝋 */}
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-wax font-mincho text-2xl text-paper shadow-md">
-          封
-        </div>
-      </div>
+      {/* 復号に成功して文面が取れたら、封蝋を割る。失敗したときは割らない */}
+      <Envelope
+        senderName={header.senderName}
+        broken={message !== null}
+        onBroken={() => setRevealed(true)}
+      />
 
       {failed && (
         <p role="alert" className="text-sm text-wax">
@@ -180,10 +189,11 @@ export function LetterPage() {
       <button
         type="button"
         onClick={breakSeal}
-        disabled={opening}
+        // 演出のあいだ（文面は取れたが、まだ紙面を出していない）も押せないようにする
+        disabled={opening || message !== null}
         className="rounded-full bg-gold px-8 py-3 font-bold text-gold-ink disabled:opacity-60"
       >
-        {opening ? '封を切っています…' : '封を切る'}
+        {opening || message !== null ? '封を切っています…' : '封を切る'}
       </button>
     </section>
   )

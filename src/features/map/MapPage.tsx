@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router'
 import { distanceMeters, remainingMeters } from '../../lib/geo.ts'
 import { useInbox } from '../letter/inboxContext.ts'
 import { useCurrentLocation } from '../location/locationContext.ts'
@@ -19,7 +20,7 @@ const gpsMessages = {
 
 export function MapPage() {
   const { source, position, gpsStatus, startGps, moveTo } = useCurrentLocation()
-  const { items, openedIds } = useInbox()
+  const { status, items, openedIds } = useInbox()
   const isDemo = source === 'manual'
   const message = gpsMessages[gpsStatus]
 
@@ -93,19 +94,41 @@ export function MapPage() {
             {message}
           </p>
         )}
+        {status === 'error' && (
+          <p role="alert" className="rounded-lg bg-surface/90 px-3 py-1.5 text-center text-xs text-wax">
+            手紙を読み込めませんでした。電波のよいところで、開きなおしてください。
+          </p>
+        )}
       </div>
 
-      {nearest && (
-        // 下の余白は、地図の帰属表示（© OpenStreetMap など）に重ならないようにするため
-        <div className="absolute inset-x-0 bottom-0 mx-auto max-w-md px-3 pb-9">
-          <NearestLetterCard
-            id={nearest.id}
-            header={nearest.header}
-            remaining={nearest.remaining}
-            onWalkThere={() => moveTo({ lat: nearest.header.lat, lng: nearest.header.lng })}
-          />
+      {/* 下の余白は、地図の帰属表示（© OpenStreetMap など）に重ならないようにするため。
+          カードが無いあいだは、この場所のタップも地図に通す */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 mx-auto max-w-md px-3 pb-9">
+        <div className="pointer-events-auto">
+          {nearest ? (
+            <NearestLetterCard
+              id={nearest.id}
+              header={nearest.header}
+              remaining={nearest.remaining}
+              onWalkThere={() => moveTo({ lat: nearest.header.lat, lng: nearest.header.lng })}
+            />
+          ) : (
+            // 読み込みが終わって、地図に出せる手紙が 1 通もないとき。次にできることを案内する
+            status === 'ready' && (
+              <div className="rounded-2xl border border-line bg-surface/95 p-4 text-center shadow-lg">
+                <p className="font-mincho text-lg">まだ手紙は埋まっていません</p>
+                <p className="mt-1 text-sm text-muted">まずは自分あてに 1 通、埋めてみませんか。</p>
+                <Link
+                  to="/bury"
+                  className="mt-3 block w-full rounded-full bg-gold px-4 py-2 text-center text-sm font-bold text-gold-ink"
+                >
+                  手紙を埋める
+                </Link>
+              </div>
+            )
+          )}
         </div>
-      )}
+      </div>
     </section>
   )
 }
