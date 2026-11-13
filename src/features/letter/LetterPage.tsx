@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'motion/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { openBody } from '../../lib/crypto.ts'
@@ -10,6 +10,12 @@ import { useFriends } from '../friends/friendsContext.ts'
 import { useCurrentLocation } from '../location/locationContext.ts'
 import { Envelope } from './Envelope.tsx'
 import { useInbox } from './inboxContext.ts'
+
+/**
+ * 封蝋が割れる演出（1 秒弱）が終わらなかったときに、紙面を出すまで待つ時間（ミリ秒）。
+ * タブが裏に回っているなど、ブラウザが動きを止めていると、演出の「終わった」が届かないことがある。
+ */
+const REVEAL_FALLBACK_MS = 1500
 
 /** 「11月13日」のような日付にする */
 function formatDate(time: number): string {
@@ -49,6 +55,16 @@ export function LetterPage() {
   const [failed, setFailed] = useState(false)
   // 「いま」は画面を開いた時点で 1 回だけ読む
   const [now] = useState(() => Date.now())
+
+  // 保険：文面が取れたのに演出が終わらないときも、少し待てば必ず紙面を出す
+  useEffect(() => {
+    if (message === null || revealed || id === undefined) return
+    const timer = setTimeout(() => {
+      setRevealed(true)
+      markOpened(id)
+    }, REVEAL_FALLBACK_MS)
+    return () => clearTimeout(timer)
+  }, [message, revealed, id, markOpened])
 
   const item = items.find((candidate) => candidate.capsule.id === id)
 
@@ -90,8 +106,8 @@ export function LetterPage() {
     setFailed(false)
     try {
       const body = await openBody(capsule, uid, privateKey)
+      // ここではまだ「開封済み」にしない。封蝋が割れおわってから記録する（下の onBroken）
       setMessage(body.message)
-      markOpened(capsule.id)
     } catch (error) {
       // エラーだけを出す。手紙の文面はコンソールに出さない
       console.error('封を切れませんでした', error)
@@ -177,7 +193,11 @@ export function LetterPage() {
       <Envelope
         senderName={header.senderName}
         broken={message !== null}
-        onBroken={() => setRevealed(true)}
+        onBroken={() => {
+          setRevealed(true)
+          // 演出の途中で記録すると、封筒の上の文字が「前に開けた手紙です」に変わってしまうので、ここで記録する
+          markOpened(capsule.id)
+        }}
       />
 
       {failed && (
