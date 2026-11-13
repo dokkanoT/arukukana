@@ -2,7 +2,9 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover：iPhone の画面下の横棒（ホームインジケータ）のぶんの余白を、CSS の
+         env(safe-area-inset-bottom) で受け取れるようにする。これが無いと余白は常に 0 になる -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="その場所に着いたときだけ開ける手紙。いつもの帰り道を、1ミリ良くする。" />
     <meta name="theme-color" content="#0F1118" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
