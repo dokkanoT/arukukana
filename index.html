@@ -8,6 +8,13 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <!-- iPhone のホーム画面に追加したときのアイコン -->
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- iPhone でホーム画面から開いたとき、アドレスバーを出さずにアプリのように開く。
+         iPhone はマニフェストの display だけでは効かないことがあるので、Apple 独自の指定も書く -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="アルクカナ" />
+    <!-- 上の時計や電池の帯を、夜色の画面に合わせて黒にする -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
